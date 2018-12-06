@@ -2,7 +2,7 @@ App = {
     web3Provider: null,
     contracts: {},
     api: null,
-    tabs: ['TradeCenter', 'BreedCenter', 'FightCenter', 'FeedCenter', 'UpgradeCenter', 'Me'],
+    tabs: ['TradeCenter', 'BreedCenter', 'Me'],
     currentTab: null,
     config: {},
     currentAccount: null,
@@ -20,15 +20,10 @@ App = {
             App.config.imgCount = data.img_count;
             App.config.defaultTradeCenterThingsNum = data.default_trade_center_things_num;
             App.config.defaultBreedCenterThingsNum = data.default_breed_center_things_num;
-            App.config.defaultFightCenterThingsNum = data.default_fight_center_things_num;
             App.config.defaultUsersThingsNum = data.default_users_things_num;
             App.config.defaultTradeCenterAccount = data.default_accounts.trade_center;
             App.config.defaultBreedCenterAccount = data.default_accounts.breed_center;
-            App.config.defaultFightCenterAccount = data.default_accounts.fight_center;
-            App.config.defaultFeedCenterAccount = data.default_accounts.feed_center;
-            App.config.defaultUpgradeCenterAccount = data.default_accounts.upgrade_center;
             App.config.defaultUsersAccount = data.default_accounts.users;
-            App.config.levelUpFee = data.level_up_fee;
 
             // init global var
             App.currentAccount = data.default_accounts.users[0];
@@ -79,9 +74,6 @@ App = {
                         case App.config.defaultBreedCenterAccount:
                             App.loadThing(result.args.thingId, App.tabs[1]);
                             break;
-                        case App.config.defaultFightCenterAccount:
-                            App.loadThing(result.args.thingId, App.tabs[2]);
-                            break;
                         default:
                             App.loadThing(result.args.thingId, App.tabs[5]);
                             break;
@@ -102,9 +94,6 @@ App = {
                         case App.config.defaultBreedCenterAccount:
                             App.removeThing(result.args._tokenId, App.tabs[1]);
                             break;
-                        case App.config.defaultFightCenterAccount:
-                            App.removeThing(result.args._tokenId, App.tabs[2]);
-                            break;
                         default:
                             App.removeThing(result.args._tokenId, App.tabs[5]);
                             break;
@@ -115,9 +104,6 @@ App = {
                             break;
                         case App.config.defaultBreedCenterAccount:
                             App.loadThing(result.args.thingId, App.tabs[1]);
-                            break;
-                        case App.config.defaultFightCenterAccount:
-                            App.loadThing(result.args.thingId, App.tabs[2]);
                             break;
                         default:
                             App.loadThing(result.args.thingId, App.tabs[5]);
@@ -130,7 +116,6 @@ App = {
             App.initAccount();
             App.initThingFactory(App.config.defaultTradeCenterAccount, App.config.defaultTradeCenterThingsNum);
             App.initThingFactory(App.config.defaultBreedCenterAccount, App.config.defaultBreedCenterThingsNum);
-            App.initThingFactory(App.config.defaultFightCenterAccount, App.config.defaultFightCenterThingsNum);
             for (let i = 0; i < App.config.defaultUsersAccount.length; i++) {
                 App.initThingFactory(App.config.defaultUsersAccount[i], App.config.defaultUsersThingsNum);
             }
@@ -208,54 +193,6 @@ App = {
             }
         }).catch(function (err) {
             console.log('handleBreedCenter error: ' + err.message);
-        });
-    },
-
-    // 战斗中心
-    handleFightCenter: function () {
-        App.currentTab = App.tabs[2];
-        $('#play-hint').text("玩法：（1）在希望与之战斗的宠物下输入我的宠物ID（2）点击打TA触发战斗（3）数据入链后，战斗结果在“我的“中查看").show();
-        $('#thingsRow').empty();
-        App.contracts.ThingCore.deployed().then(function (instance) {
-            return instance.getThingsByOwner(App.config.defaultFightCenterAccount);
-        }).then(function (thingIds) {
-            for (let i = 0; i < thingIds.length; i++) {
-                App.loadThing(thingIds[i], App.tabs[2]);
-            }
-        }).catch(function (err) {
-            console.log('handleFightCenter error: ' + err.message);
-        });
-    },
-
-    // 喂养中心
-    handleFeedCenter: function () {
-        App.currentTab = App.tabs[3];
-        $('#play-hint').text("玩法：（1）给你的宠物喂食以太猫（2）在希望被喂食的宠物下输入以太猫ID，介于1~60000之间，点击“”喂食”（3）数据入链后，在“我的“中查看产生的新的变异宠物").show();
-        $('#thingsRow').empty();
-        App.contracts.ThingCore.deployed().then(function (instance) {
-            return instance.getThingsByOwner(App.currentAccount);
-        }).then(function (thingIds) {
-            for (let i = 0; i < thingIds.length; i++) {
-                App.loadThing(thingIds[i], App.tabs[3]);
-            }
-        }).catch(function (err) {
-            console.log('handleFeedCenter error: ' + err.message);
-        });
-    },
-
-    // 升级中心
-    handleUpgradeCenter: function () {
-        App.currentTab = App.tabs[4];
-        $('#play-hint').text("玩法：升级宠物需花费 1ETH").show();
-        $('#thingsRow').empty();
-        App.contracts.ThingCore.deployed().then(function (instance) {
-            return instance.getThingsByOwner(App.currentAccount);
-        }).then(function (thingIds) {
-            for (let i = 0; i < thingIds.length; i++) {
-                App.loadThing(thingIds[i], App.tabs[4]);
-            }
-        }).catch(function (err) {
-            console.log('handleUpgradeCenter error: ' + err.message);
         });
     },
 
@@ -344,110 +281,6 @@ App = {
         });
     },
 
-    // 战斗
-    handleFight: function () {
-        let targetThingId = $(this).attr('thing-id');
-        let myId = $("[thing-item-id="+targetThingId+"]").find('.my-id').val();
-        if (myId === "") {
-            alert("请输入你的宠物ID");
-            return;
-        }
-        App.contracts.ThingCore.deployed().then(function (instance) {
-            return instance.getThing(parseInt(myId));
-        }).then(function (thing) {
-            let readyTime = thing[4];
-            let timestamp = new Date().getTime() / 1000;
-            if (timestamp >= readyTime) {
-                $("[thing-item-id="+targetThingId+"]").find('.btn-fight').text('战斗中').attr('disabled', true);
-                App.contracts.ThingCore.deployed().then(function (instance) {
-                    if (App.config.debug) {
-                        console.log(App.currentAccount + ' fight thing, targetThingId: ' + targetThingId + ", myId: " + myId);
-                    }
-                    return instance.attack(parseInt(myId), parseInt(targetThingId), {from: App.currentAccount,gas: 1000000000});
-                }).then(function (result) {
-                    if (App.config.debug) {
-                        console.log('handleBreed result = ' + JSON.stringify(result));
-                    }
-                    $("[thing-item-id="+targetThingId+"]").find('.btn-fight').text('打TA').attr('disabled', false);
-                    alert("战斗完成，请在“我的”中查看战斗结果。")
-                }).catch(function (err) {
-                    console.log(err.message);
-                });
-            } else {
-                alert("宠物还在冷却中，请换个")
-            }
-        }).catch(function (err) {
-            console.log(err.message);
-        });
-    },
-
-    // 喂养
-    handleFeed: function () {
-        let targetThingId = $(this).attr('thing-id');
-        let kittyId = $("[thing-item-id="+targetThingId+"]").find('.kitty-id').val();
-        if (kittyId === "") {
-            alert("请输入食物（Kitty）的ID");
-            return;
-        }
-        App.contracts.ThingCore.deployed().then(function (instance) {
-            return instance.getThing(parseInt(targetThingId));
-        }).then(function (thing) {
-            let readyTime = thing[4];
-            let timestamp = new Date().getTime() / 1000;
-            if (timestamp >= readyTime) {
-                $("[thing-item-id="+targetThingId+"]").find('.btn-feed').text('喂食中').attr('disabled', true);
-                App.contracts.ThingCore.deployed().then(function (instance) {
-                    if (App.config.debug) {
-                        console.log(App.currentAccount + ' feed thing, targetThingId: ' + targetThingId + ", kittyId: " + kittyId);
-                    }
-                    return instance.feedOnKitty(parseInt(targetThingId), parseInt(kittyId), {from: App.currentAccount,gas: 1000000000});
-                }).then(function (result) {
-                    if (App.config.debug) {
-                        console.log('handleBreed result = ' + JSON.stringify(result));
-                    }
-                    $("[thing-item-id="+targetThingId+"]").find('.btn-feed').text('喂TA').attr('disabled', false);
-                    alert("喂食完成，请在“我的”中查看获得的变异宠物。")
-                }).catch(function (err) {
-                    console.log(err.message);
-                });
-            } else {
-                alert("宠物还在冷却中，请换个")
-            }
-        }).catch(function (err) {
-            console.log(err.message);
-        });
-    },
-
-    // 升级
-    handleUpgradeThing: function () {
-        if (App.currentAccountBalance < 1) {
-            alert("当前账户余额不足，升级至少需要1ETH");
-        }
-        $(this).text('升级中').attr('disabled', true);
-        let thingId = $(this).attr('thing-id');
-        App.contracts.ThingCore.deployed().then(function (instance) {
-            if (App.config.debug) {
-                console.log(App.currentAccount + ' upgrade thing, thingId: ' + thingId);
-            }
-            return instance.levelUp(thingId, {from: App.currentAccount,
-                value: web3.toWei(App.config.levelUpFee, 'ether')});
-        }).then(function (result) {
-            if (App.config.debug) {
-                console.log('handleUpgradeThing result = ' + JSON.stringify(result));
-            }
-            App.contracts.ThingCore.deployed().then(function (instance) {
-                    return instance.getThing(parseInt(thingId));
-                }).then(function (thing) {
-                $("[thing-item-id="+thingId+"]").find('.thing-level').text(thing[3]);
-                $("[thing-item-id="+thingId+"]").find('.btn-upgrade').text('升级').attr('disabled', false);
-                alert("升级完成，请在“我的”中查看结果。")
-
-            });
-        }).catch(function (err) {
-            console.log(err.message);
-        });
-    },
-
     // 出售
     handleSellThing: function () {
         $(this).text('出售中').attr('disabled', true);
@@ -473,17 +306,11 @@ App = {
         $(document).on('click', '.menu-item', App.handleChangeAccount);
         $('#trade-center').on('click', App.handleTradeCenter);
         $('#breed-center').on('click', App.handleBreedCenter);
-        $('#fight-center').on('click', App.handleFightCenter);
-        $('#feed-center').on('click', App.handleFeedCenter);
-        $('#upgrade-center').on('click', App.handleUpgradeCenter);
         $('#my-center').on('click', App.handleMyCenter);
 
         $(document).on('click', '.btn-bug', App.handleBuyThing);
-        $(document).on('click', '.btn-upgrade', App.handleUpgradeThing);
         $(document).on('click', '.btn-sell', App.handleSellThing);
         $(document).on('click', '.btn-breed', App.handleBreed);
-        $(document).on('click', '.btn-fight', App.handleFight);
-        $(document).on('click', '.btn-feed', App.handleFeed);
     },
 
     updateBalance: function () {
@@ -580,61 +407,22 @@ App = {
                     case App.tabs[0]:
                         thingTemplate.find('.btn-bug').show();
                         thingTemplate.find('.btn-sell').hide();
-                        thingTemplate.find('.btn-upgrade').hide();
                         thingTemplate.find('.btn-breed').hide();
-                        thingTemplate.find('.btn-fight').hide();
                         thingTemplate.find('.my-id').hide();
-                        thingTemplate.find('.btn-feed').hide();
                         thingTemplate.find('.kitty-id').hide();
                         break;
                     case App.tabs[1]:
                         thingTemplate.find('.btn-bug').hide();
                         thingTemplate.find('.btn-sell').hide();
-                        thingTemplate.find('.btn-upgrade').hide();
                         thingTemplate.find('.btn-breed').show();
-                        thingTemplate.find('.btn-fight').hide();
                         thingTemplate.find('.my-id').show();
-                        thingTemplate.find('.btn-feed').hide();
                         thingTemplate.find('.kitty-id').hide();
                         break;
                     case App.tabs[2]:
                         thingTemplate.find('.btn-bug').hide();
                         thingTemplate.find('.btn-sell').hide();
-                        thingTemplate.find('.btn-upgrade').hide();
                         thingTemplate.find('.btn-breed').hide();
-                        thingTemplate.find('.btn-fight').show();
                         thingTemplate.find('.my-id').show();
-                        thingTemplate.find('.btn-feed').hide();
-                        thingTemplate.find('.kitty-id').hide();
-                        break;
-                    case App.tabs[3]:
-                        thingTemplate.find('.btn-bug').hide();
-                        thingTemplate.find('.btn-sell').hide();
-                        thingTemplate.find('.btn-upgrade').hide();
-                        thingTemplate.find('.btn-breed').hide();
-                        thingTemplate.find('.btn-fight').hide();
-                        thingTemplate.find('.my-id').hide();
-                        thingTemplate.find('.btn-feed').show();
-                        thingTemplate.find('.kitty-id').show();
-                        break;
-                    case App.tabs[4]:
-                        thingTemplate.find('.btn-bug').hide();
-                        thingTemplate.find('.btn-sell').hide();
-                        thingTemplate.find('.btn-upgrade').show();
-                        thingTemplate.find('.btn-breed').hide();
-                        thingTemplate.find('.btn-fight').hide();
-                        thingTemplate.find('.my-id').hide();
-                        thingTemplate.find('.btn-feed').hide();
-                        thingTemplate.find('.kitty-id').hide();
-                        break;
-                    case App.tabs[5]:
-                        thingTemplate.find('.btn-bug').hide();
-                        thingTemplate.find('.btn-sell').show();
-                        thingTemplate.find('.btn-upgrade').hide();
-                        thingTemplate.find('.btn-breed').hide();
-                        thingTemplate.find('.btn-fight').hide();
-                        thingTemplate.find('.my-id').hide();
-                        thingTemplate.find('.btn-feed').hide();
                         thingTemplate.find('.kitty-id').hide();
                         break;
                 }
