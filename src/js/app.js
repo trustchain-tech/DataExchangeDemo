@@ -2,7 +2,7 @@ App = {
     web3Provider: null,
     contracts: {},
     api: null,
-    tabs: ['TradeCenter', 'BreedCenter', 'Me'],
+    tabs: ['TradeCenter', 'BreedCenter', 'ComputeCenter', 'Me'],
     currentTab: null,
     config: {},
     currentAccount: null,
@@ -20,9 +20,11 @@ App = {
             App.config.imgCount = data.img_count;
             App.config.defaultTradeCenterThingsNum = data.default_trade_center_things_num;
             App.config.defaultBreedCenterThingsNum = data.default_breed_center_things_num;
+            App.config.defaultComputeCenterThingsNum = data.default_breed_center_things_num;
             App.config.defaultUsersThingsNum = data.default_users_things_num;
             App.config.defaultTradeCenterAccount = data.default_accounts.trade_center;
             App.config.defaultBreedCenterAccount = data.default_accounts.breed_center;
+            App.config.defaultComputeCenterAccount = data.default_accounts.breed_center;
             App.config.defaultUsersAccount = data.default_accounts.users;
 
             // init global var
@@ -74,8 +76,11 @@ App = {
                         case App.config.defaultBreedCenterAccount:
                             App.loadThing(result.args.thingId, App.tabs[1]);
                             break;
+                        case App.config.defaultComputeCenterAccount:
+                            App.loadThing(result.args.thingId, App.tabs[2]);
+                            break;
                         default:
-                            App.loadThing(result.args.thingId, App.tabs[5]);
+                            App.loadThing(result.args.thingId, App.tabs[3]);
                             break;
                     }
                 } else {
@@ -94,8 +99,11 @@ App = {
                         case App.config.defaultBreedCenterAccount:
                             App.removeThing(result.args._tokenId, App.tabs[1]);
                             break;
+                        case App.config.defaultComputeCenterAccount:
+                            App.removeThing(result.args._tokenId, App.tabs[2]);
+                            break;
                         default:
-                            App.removeThing(result.args._tokenId, App.tabs[5]);
+                            App.removeThing(result.args._tokenId, App.tabs[3]);
                             break;
                     }
                     switch (result.args._to) {
@@ -105,8 +113,11 @@ App = {
                         case App.config.defaultBreedCenterAccount:
                             App.loadThing(result.args.thingId, App.tabs[1]);
                             break;
+                        case App.config.defaultComputeCenterAccount:
+                            App.loadThing(result.args.thingId, App.tabs[2]);
+                            break;
                         default:
-                            App.loadThing(result.args.thingId, App.tabs[5]);
+                            App.loadThing(result.args.thingId, App.tabs[3]);
                             break;
                     }
                 } else {
@@ -116,6 +127,7 @@ App = {
             App.initAccount();
             App.initThingFactory(App.config.defaultTradeCenterAccount, App.config.defaultTradeCenterThingsNum);
             App.initThingFactory(App.config.defaultBreedCenterAccount, App.config.defaultBreedCenterThingsNum);
+            App.initThingFactory(App.config.defaultComputeCenterAccount, App.config.defaultComputeCenterThingsNum);
             for (let i = 0; i < App.config.defaultUsersAccount.length; i++) {
                 App.initThingFactory(App.config.defaultUsersAccount[i], App.config.defaultUsersThingsNum);
             }
@@ -196,9 +208,26 @@ App = {
         });
     },
 
+    // Compute Center
+    handleComputeCenter: function () {
+        App.currentTab = App.tabs[1];
+        $('#play-hint').text("select an algorithm to compute thing to a new thing").show();
+        $('#thingsRow').empty();
+        App.contracts.ThingCore.deployed().then(function (instance) {
+            return instance.getThingsByOwner(App.config.defaultComputeCenterAccount);
+        }).then(function (thingIds) {
+            for (let i = 0; i < thingIds.length; i++) {
+                App.loadThing(thingIds[i], App.tabs[2]);
+            }
+        }).catch(function (err) {
+            console.log('handleBreedCenter error: ' + err.message);
+        });
+    },
+
+
     // 我的
     handleMyCenter: function () {
-        App.currentTab = App.tabs[5];
+        App.currentTab = App.tabs[3];
         $('#play-hint').hide();
         $('#thingsRow').empty();
         App.contracts.ThingCore.deployed().then(function (instance) {
@@ -281,6 +310,23 @@ App = {
         });
     },
 
+    // Compute
+    handleCompute: function () {
+        let targetThingId = $(this).attr('thing-id');
+        let myId = $("[thing-item-id="+targetThingId+"]").find('.my-id').val();
+        if (myId === "") {
+            alert("请输入你的宠物ID");
+            return;
+        }
+        App.contracts.ThingCore.deployed().then(function (instance) {
+            return instance.getThing(parseInt(myId));
+        }).then(function (thing) {
+            console.log("in compute center");
+        }).catch(function (err) {
+            console.log(err.message);
+        });
+    },
+
     // 出售
     handleSellThing: function () {
         $(this).text('出售中').attr('disabled', true);
@@ -306,11 +352,13 @@ App = {
         $(document).on('click', '.menu-item', App.handleChangeAccount);
         $('#trade-center').on('click', App.handleTradeCenter);
         $('#breed-center').on('click', App.handleBreedCenter);
+        $('#compute-center').on('click', App.handleComputeCenter);
         $('#my-center').on('click', App.handleMyCenter);
 
         $(document).on('click', '.btn-bug', App.handleBuyThing);
         $(document).on('click', '.btn-sell', App.handleSellThing);
         $(document).on('click', '.btn-breed', App.handleBreed);
+        $(document).on('click', '.btn-compute', App.handleCompute);
     },
 
     updateBalance: function () {
@@ -357,11 +405,8 @@ App = {
             let name = thing[0];
             let price = thing[1];
             let dna = thing[2];
-            let level = thing[3];
-            let readyTime = thing[4];
-            let generation = thing[5];
-            let winCount = thing[6];
-            let lossCount = thing[7];
+            let readyTime = thing[3];
+            let generation = thing[4];
             let url = App.config.imgUrl + (thing[2] % App.config.imgCount);
             if (App.config.debug) {
                 console.log("Image res: " + url);
@@ -376,7 +421,6 @@ App = {
                 thingTemplate.find('img').attr('src', data.image_url);
                 thingTemplate.find('.thing-id').text(thingId);
                 thingTemplate.find('.thing-price').text(price);
-                thingTemplate.find('.thing-level').text(level);
                 thingTemplate.find('.thing-generation').text(generation);
                 let timestamp=new Date().getTime() / 1000;
                 if (timestamp >= readyTime) {
@@ -384,8 +428,6 @@ App = {
                 } else {
                     thingTemplate.find('.thing-ready-time').text(parseInt((readyTime - timestamp) / 60));
                 }
-                thingTemplate.find('.thing-fight-win').text(winCount);
-                thingTemplate.find('.thing-fight-loss').text(lossCount);
                 let attr = App.generateAttr(thing[2]);
                 thingTemplate.find('.thing-head').text(attr.headChoice);
                 thingTemplate.find('.thing-eye').text(attr.eyeChoice);
@@ -398,8 +440,7 @@ App = {
                 thingTemplate.find('.btn-sell').attr('thing-price', price);
                 thingTemplate.find('.btn-upgrade').attr('thing-id', thingId);
                 thingTemplate.find('.btn-breed').attr('thing-id', thingId);
-                thingTemplate.find('.btn-fight').attr('thing-id', thingId);
-                thingTemplate.find('.btn-feed').attr('thing-id', thingId);
+                thingTemplate.find('.btn-compute').attr('thing-id', thingId);
                 if (App.currentTab !== targetTab) {
                     return;
                 }
@@ -408,6 +449,7 @@ App = {
                         thingTemplate.find('.btn-bug').show();
                         thingTemplate.find('.btn-sell').hide();
                         thingTemplate.find('.btn-breed').hide();
+                        thingTemplate.find('.btn-compute').hide();
                         thingTemplate.find('.my-id').hide();
                         thingTemplate.find('.kitty-id').hide();
                         break;
@@ -415,6 +457,7 @@ App = {
                         thingTemplate.find('.btn-bug').hide();
                         thingTemplate.find('.btn-sell').hide();
                         thingTemplate.find('.btn-breed').show();
+                        thingTemplate.find('.btn-compute').hide();
                         thingTemplate.find('.my-id').show();
                         thingTemplate.find('.kitty-id').hide();
                         break;
@@ -422,6 +465,15 @@ App = {
                         thingTemplate.find('.btn-bug').hide();
                         thingTemplate.find('.btn-sell').hide();
                         thingTemplate.find('.btn-breed').hide();
+                        thingTemplate.find('.btn-compute').show();
+                        thingTemplate.find('.my-id').hide();
+                        thingTemplate.find('.kitty-id').hide();
+                        break;
+                    case App.tabs[3]:
+                        thingTemplate.find('.btn-bug').hide();
+                        thingTemplate.find('.btn-sell').hide();
+                        thingTemplate.find('.btn-breed').hide();
+                        thingTemplate.find('.btn-compute').hide();
                         thingTemplate.find('.my-id').show();
                         thingTemplate.find('.kitty-id').hide();
                         break;
