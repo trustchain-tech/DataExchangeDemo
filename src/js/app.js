@@ -256,7 +256,7 @@ App = {
         }
         let thingId = $(this).attr('thing-id');
         let thingPrice = $(this).attr('thing-price');
-        $("[thing-item-id="+thingId+"]").find('.btn-bug').text('购买中').attr('disabled', true);
+        $("[thing-item-id="+thingId+"]").find('.btn-buy').text('购买中').attr('disabled', true);
         App.contracts.ThingCore.deployed().then(function (instance) {
             if (App.config.debug) {
                 console.log(App.currentAccount + ' buy thing, thingId: ' + thingId + ", thingPrice: " + thingPrice);
@@ -355,7 +355,7 @@ App = {
         $('#compute-center').on('click', App.handleComputeCenter);
         $('#my-center').on('click', App.handleMyCenter);
 
-        $(document).on('click', '.btn-bug', App.handleBuyThing);
+        $(document).on('click', '.btn-buy', App.handleBuyThing);
         $(document).on('click', '.btn-sell', App.handleSellThing);
         $(document).on('click', '.btn-breed', App.handleBreed);
         $(document).on('click', '.btn-compute', App.handleCompute);
@@ -434,8 +434,8 @@ App = {
                 thingTemplate.find('.thing-skin').text(attr.skinChoice);
                 thingTemplate.find('.thing-up').text(attr.upChoice);
                 thingTemplate.find('.thing-down').text(attr.downChoice);
-                thingTemplate.find('.btn-bug').attr('thing-id', thingId);
-                thingTemplate.find('.btn-bug').attr('thing-price', price);
+                thingTemplate.find('.btn-buy').attr('thing-id', thingId);
+                thingTemplate.find('.btn-buy').attr('thing-price', price);
                 thingTemplate.find('.btn-sell').attr('thing-id', thingId);
                 thingTemplate.find('.btn-sell').attr('thing-price', price);
                 thingTemplate.find('.btn-upgrade').attr('thing-id', thingId);
@@ -446,7 +446,7 @@ App = {
                 }
                 switch (App.currentTab) {
                     case App.tabs[0]:
-                        thingTemplate.find('.btn-bug').show();
+                        thingTemplate.find('.btn-buy').show();
                         thingTemplate.find('.btn-sell').hide();
                         thingTemplate.find('.btn-breed').hide();
                         thingTemplate.find('.btn-compute').hide();
@@ -454,7 +454,7 @@ App = {
                         thingTemplate.find('.kitty-id').hide();
                         break;
                     case App.tabs[1]:
-                        thingTemplate.find('.btn-bug').hide();
+                        thingTemplate.find('.btn-buy').hide();
                         thingTemplate.find('.btn-sell').hide();
                         thingTemplate.find('.btn-breed').show();
                         thingTemplate.find('.btn-compute').hide();
