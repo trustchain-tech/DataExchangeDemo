@@ -167,7 +167,7 @@ App = {
     // 交易大厅
     handleTradeCenter: function () {
         App.currentTab = App.tabs[0];
-        $('#play-hint').text("玩法：（1）点击购买宠物（2）数据入链后交易才完成（3）在“我的“中查看已购宠物").show();
+        $('#play-hint').text("").show();
         $('#thingsRow').empty();
         App.contracts.ThingCore.deployed().then(function (instance) {
             return instance.getThingsByOwner(App.config.defaultTradeCenterAccount);
@@ -224,11 +224,11 @@ App = {
     // 购买
     handleBuyThing: function () {
         if (parseInt($(this).attr('thing-price')) > App.currentAccountBalance) {
-            alert("当前账户余额不足");
+            alert("Not Enough Balance of Current Account");
         }
         let thingId = $(this).attr('thing-id');
         let thingPrice = $(this).attr('thing-price');
-        $("[thing-item-id="+thingId+"]").find('.btn-buy').text('购买中').attr('disabled', true);
+        $("[thing-item-id="+thingId+"]").find('.btn-buy').text('Buying...').attr('disabled', true);
         App.contracts.ThingCore.deployed().then(function (instance) {
             if (App.config.debug) {
                 console.log(App.currentAccount + ' buy thing, thingId: ' + thingId + ", thingPrice: " + thingPrice);
@@ -250,7 +250,7 @@ App = {
         let targetThingId = $(this).attr('thing-id');
         let myId = $("[thing-item-id="+targetThingId+"]").find('.my-id').val();
         if (myId === "") {
-            alert("请输入你的宠物ID");
+            alert("Input Your Thing ID");
             return;
         }
         App.contracts.ThingCore.deployed().then(function (instance) {
@@ -264,7 +264,7 @@ App = {
 
     // 出售
     handleSellThing: function () {
-        $(this).text('出售中').attr('disabled', true);
+        $(this).text('Selling').attr('disabled', true);
         let thingId = $(this).attr('thing-id');
         let thingPrice = $(this).attr('thing-price');
         App.contracts.ThingCore.deployed().then(function (instance) {
@@ -350,7 +350,7 @@ App = {
                 let thingTemplate = $('#thing-template');
                 thingTemplate.find('.thing-template-body').addClass('thing-item');
                 thingTemplate.find('.thing-template-body').attr('thing-item-id', thingId);
-                thingTemplate.find('.panel-title').text("名字：" + name);
+                thingTemplate.find('.panel-title').text("Name: " + name);
                 thingTemplate.find('img').attr('src', data.image_url);
                 thingTemplate.find('.thing-id').text(thingId);
                 thingTemplate.find('.thing-price').text(price);

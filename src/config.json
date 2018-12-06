@@ -1,6 +1,6 @@
 {
   "debug":true,
-  "dapp_name": "CryptoKitties",
+  "dapp_name": "OpenData-Exchanger",
   "rpc": "http://127.0.0.1:7545",
   "network_id":"5777",
   "img_url":"https://api.cryptokitties.co/kitties/",
