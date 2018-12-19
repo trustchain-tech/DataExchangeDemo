@@ -70,28 +70,22 @@ contract Ownable {
 /// Below is Thing Contract
 ///
 
-/// 产品生产者
 contract ThingFactory is Ownable {
 
     using SafeMath for uint256;
 
-    // 生产一个产品后的通知事件
-    event NewThing(address _from, uint thingId, string name, uint dna);
-    // 日志事件
+    event NewThing(address _from, uint thingId, string name, bytes32 dna);
     event LogStatus(address _from, string log);
 
-    // 基因位数
-    uint dnaDigits = 16;
-    uint dnaModulus = 10 ** dnaDigits;
-    // 技能冷却时间
-    uint cooldownTime = 1 days;
-
     struct Thing {
-        string name;       // 名字
-        uint price;        // 价格
-        uint dna;          // DNA
-        uint32 readyTime;  // 技能冷却
-        uint32 generation; // 代数
+        string name;       // thing[0]
+        string ext_url;    // thing[1]
+        bytes32 dna;       // thing[2]
+        uint parent_id;    // thing[3]
+        uint func_id;      // thing[4]
+        uint generation;   // thing[5]
+        uint price;        // thing[6]
+        bool on_sale;      // thing[7]
     }
 
     Thing[] public things;
@@ -101,16 +95,21 @@ contract ThingFactory is Ownable {
     // _owner <==> _tokenCount
     mapping (address => uint) ownerThingCount;
 
-    function _createThing(string _name, uint _dna, uint32 _generation) internal {
+    function _createThing(string _name, string _ext_url,
+        uint _parent_id, uint _func_id, uint _generation) internal
+    {
         require(msg.sender != address(0));
 
         // 配置默认产品
         Thing memory _thing;
         _thing.name = _name;
-        _thing.price = (_dna / 100) % 100;
-        _thing.dna = _dna;
-        _thing.readyTime = uint32(now);
+        _thing.ext_url = _ext_url;
+        _thing.dna = _generateDna(_ext_url);
+        _thing.parent_id = _parent_id;
+        _thing.func_id = _func_id;
         _thing.generation = _generation;
+        _thing.price = 5;
+        _thing.on_sale = true;
 
         // 记录到区块链
         uint id = things.push(_thing) - 1;
@@ -118,25 +117,22 @@ contract ThingFactory is Ownable {
         ownerThingCount[msg.sender]++;
 
         // 通知事件
-        NewThing(msg.sender, id, _name, _dna);
+        NewThing(msg.sender, id, _name, _thing.dna);
     }
 
-    function _generateRandomDna(string _str) internal view returns (uint) {
-        uint rand = uint(keccak256(_str));
-        return rand % dnaModulus;
+    function _generateDna(string _str) internal pure returns (bytes32) {
+        return keccak256(_str);
     }
 
     // 对外接口，用于生产产品
     function createRandomThing(string _name, uint _limit) public {
         require(ownerThingCount[msg.sender] <= _limit);
-        uint randDna = _generateRandomDna(_name);
-        randDna = randDna - randDna % 100;
-        _createThing(_name, randDna, uint32(0));
+        _createThing(_name, _name, 0, 0, uint(0));
     }
 }
 
-/// 繁育&喂养系统
-contract ThingBreed is ThingFactory {
+/// Generate new thing
+contract ThingCompute is ThingFactory {
 
     modifier onlyOwnerOf(uint _thingId) {
         require(msg.sender == thingToOwner[_thingId]);
@@ -160,38 +156,20 @@ contract ThingBreed is ThingFactory {
         return string(babcde);
     }
 
-    function _triggerCooldown(Thing storage _thing) internal {
-        _thing.readyTime = uint32(now + cooldownTime);
-    }
-
-    function _isReady(Thing storage _thing) internal view returns (bool) {
-        return (_thing.readyTime <= now);
-    }
-
-    function multiply(uint _thingId, uint _targetDna) internal onlyOwnerOf(_thingId) {
+    function compute(uint _thingId, string func_name, string _targetUrl) public {
         Thing storage myThing = things[_thingId];
-        require(_isReady(myThing));
-        _targetDna = _targetDna % dnaModulus;
-        uint newDna = (myThing.dna + _targetDna) / 2;
-        _createThing(strConcat("n",myThing.name, "", "", ""), newDna, myThing.generation + 1);
-        _triggerCooldown(myThing);
-    }
-
-    // 繁育
-    function breed(uint _thingId, uint _targetThingId) public {
-        uint _targetDna = things[_targetThingId].dna;
-        multiply(_thingId, _targetDna);
+        // TODO func_name to func_id
+        _createThing(strConcat("n",myThing.name, "", "", ""), _targetUrl, _thingId, 1, myThing.generation + 1);
     }
 }
 
 /// 辅助合约
-contract ThingHelper is ThingBreed {
+contract ThingHelper is ThingCompute {
 
     function withdraw() external onlyOwner {
         owner.transfer(this.balance);
     }
 
-    // 对外接口，返回相应owner的产品Id数组
     function getThingsByOwner(address _owner) external view returns(uint[]) {
         uint[] memory result = new uint[](ownerThingCount[_owner]);
         uint counter = 0;
@@ -204,19 +182,43 @@ contract ThingHelper is ThingBreed {
         return result;
     }
 
-    // 对外接口，返回对应Id的产品
+    function getThingsCouldBuy(address _owner) external view returns(uint[]) {
+        uint[] memory result = new uint[](things.length);
+        uint counter = 0;
+        for (uint i = 0; i < things.length; i++) {
+            if (things[i].on_sale == true && thingToOwner[i] != _owner) {
+                result[counter] = i;
+                counter++;
+            }
+        }
+        return result;
+    }
+
     function getThing(uint _thingId) public view returns (
         string name,
+        string ext_url,
+        bytes32 dna,
+        uint parent_id,
+        uint func_id,
+        uint generation,
         uint price,
-        uint dna,
-        uint32 readyTime,
-        uint32 generation) {
+        bool on_sale,
+        address owner) {
         Thing storage thing = things[_thingId];
         name = thing.name;
-        price = thing.price;
+        ext_url = thing.ext_url;
         dna = thing.dna;
-        readyTime = thing.readyTime;
+        parent_id = thing.parent_id;
+        func_id = thing.func_id;
         generation = thing.generation;
+        price = thing.price;
+        on_sale = thing.on_sale;
+        owner = thingToOwner[_thingId];
+    }
+
+    function setOnSale(uint _thingId, bool _on_sale) public onlyOwnerOf(_thingId) {
+        Thing storage myThing = things[_thingId];
+        myThing.on_sale = _on_sale;
     }
 }
 
@@ -263,6 +265,7 @@ contract ThingCore is ThingHelper, ERC721 {
     }
 
     function buyThing(uint _thingId) public payable {
+        require(things[_thingId].on_sale == true);
         address owner = thingToOwner[_thingId];
         _transfer(owner, msg.sender, _thingId);
     }

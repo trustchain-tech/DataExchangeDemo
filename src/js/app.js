@@ -67,17 +67,7 @@ App = {
             App.api.NewThing().watch(function (error, result) {
                 if (!error) {
                     console.log('NewThing: ' + JSON.stringify(result));
-                    switch (result.args._from) {
-                        case App.config.defaultTradeCenterAccount:
-                            App.loadThing(result.args.thingId, App.tabs[0]);
-                            break;
-                        case App.config.defaultComputeCenterAccount:
-                            App.loadThing(result.args.thingId, App.tabs[1]);
-                            break;
-                        default:
-                            App.loadThing(result.args.thingId, App.tabs[2]);
-                            break;
-                    }
+                    App.loadThing(result.args.thingId, App.tabs[0]);
                 } else {
                     console.log('NewThing error: ' + error.message);
                 }
@@ -87,28 +77,9 @@ App = {
                 if (!error) {
                     console.log('Transfer: ' + JSON.stringify(result));
                     App.updateBalance();
-                    switch (result.args._from) {
-                        case App.config.defaultTradeCenterAccount:
-                            App.removeThing(result.args._tokenId, App.tabs[0]);
-                            break;
-                        case App.config.defaultComputeCenterAccount:
-                            App.removeThing(result.args._tokenId, App.tabs[1]);
-                            break;
-                        default:
-                            App.removeThing(result.args._tokenId, App.tabs[2]);
-                            break;
-                    }
-                    switch (result.args._to) {
-                        case App.config.defaultTradeCenterAccount:
-                            App.loadThing(result.args.thingId, App.tabs[0]);
-                            break;
-                        case App.config.defaultComputeCenterAccount:
-                            App.loadThing(result.args.thingId, App.tabs[1]);
-                            break;
-                        default:
-                            App.loadThing(result.args.thingId, App.tabs[2]);
-                            break;
-                    }
+                    $("[thing-item-id="+result.args._tokenId+"]").find('.btn-buy').
+                        text('Buy').attr('disabled', false);
+                    App.loadThing(result.args._tokenId, App.tabs[0]);
                 } else {
                     console.log('Transfer error: ' + error.message);
                 }
@@ -170,7 +141,7 @@ App = {
         $('#play-hint').text("").show();
         $('#thingsRow').empty();
         App.contracts.ThingCore.deployed().then(function (instance) {
-            return instance.getThingsByOwner(App.config.defaultTradeCenterAccount);
+            return instance.getThingsCouldBuy(App.currentAccount);
         }).then(function (thingIds) {
             for (let i = 0; i < thingIds.length; i++) {
                 App.loadThing(thingIds[i], App.tabs[0]);
@@ -197,7 +168,6 @@ App = {
     },
 
 
-    // 我的
     handleMyCenter: function () {
         App.currentTab = App.tabs[2];
         $('#play-hint').hide();
@@ -219,6 +189,18 @@ App = {
         console.log("handleChangeAccount text: " + $(this).html());
         $('#current-account').text(App.currentAccount);
         App.updateBalance();
+
+        switch (App.currentTab) {
+            case App.tabs[0]:
+                App.handleMyCenter();
+                break;
+            case App.tabs[1]:
+                App.handleComputeCenter();
+                break;
+            case App.tabs[2]:
+                handleMyCenter();
+                break;
+        }
     },
 
     // 购买
@@ -254,9 +236,7 @@ App = {
             return;
         }
         App.contracts.ThingCore.deployed().then(function (instance) {
-            return instance.getThing(parseInt(myId));
-        }).then(function (thing) {
-            console.log("in compute center");
+            return instance.compute(parseInt(myId), "func", "url", {from: App.currentAccount,gas: 1000000000});
         }).catch(function (err) {
             console.log(err.message);
         });
@@ -300,31 +280,6 @@ App = {
         $('#account-balance').text(balance + " ETH");
     },
 
-    generateAttr: function (dna) {
-
-        let dnaStr = String(dna);
-        // 如果dna少于16位,在它前面用0补上
-        while (dnaStr.length < 16) {
-            dnaStr = "0" + dnaStr;
-        }
-        return {
-            // 前两位数构成头部.我们可能有7种头部, 所以 % 7
-            // 得到的数在0-6,再加上1,数的范围变成1-7
-            // 通过这样计算：
-            headChoice: dnaStr.substring(0, 2) % 7 + 1,
-            // 我们得到的图片名称从head1.png 到 head7.png
-
-            // 接下来的两位数构成眼睛, 眼睛变化就对11取模:
-            eyeChoice: dnaStr.substring(2, 4) % 11 + 1,
-            // 再接下来的两位数构成衣服，衣服变化就对6取模:
-            skinChoice: dnaStr.substring(4, 6) % 6 + 1,
-
-            upChoice: dnaStr.substring(6, 8),
-            downChoice: dnaStr.substring(8, 10),
-        }
-
-    },
-
     loadThing: function(thingId, targetTab) {
         App.contracts.ThingCore.deployed().then(function (instance) {
             return instance.getThing(parseInt(thingId));
@@ -336,68 +291,64 @@ App = {
                 $('#page-head').show();
             }
             let name = thing[0];
-            let price = thing[1];
+            let ext_url = thing[1];
             let dna = thing[2];
-            let readyTime = thing[3];
-            let generation = thing[4];
-            let url = App.config.imgUrl + (thing[2] % App.config.imgCount);
-            if (App.config.debug) {
-                console.log("Image res: " + url);
+            let parent_id = thing[3];
+            let func_id = thing[4];
+            let generation = thing[5];
+            let price = thing[6];
+            let on_sale = thing[7];
+            let owner = thing[8];
+            console.log(JSON.stringify(thing));
+            let thingsRow = $('#thingsRow');
+            let thingTemplate = $('#thing-template');
+            thingTemplate.find('img').attr('src', 'img/item.jpg');
+            thingTemplate.find('.thing-template-body').addClass('thing-item');
+            thingTemplate.find('.thing-template-body').attr('thing-item-id', thingId);
+            thingTemplate.find('.panel-title').text("Name: " + name);
+            thingTemplate.find('.thing-id').text(thingId);
+            thingTemplate.find('.thing-dna').text(dna);
+            thingTemplate.find('.thing-url').text(ext_url);
+            thingTemplate.find('.thing-parent').text(parent_id);
+            thingTemplate.find('.thing-function').text(func_id);
+            thingTemplate.find('.thing-generation').text(generation);
+            thingTemplate.find('.thing-price').text(price);
+            thingTemplate.find('.thing-owner').text(owner);
+            if (on_sale == false) {
+                thingTemplate.find('.btn-buy').attr('disabled', true);
+            } else {
+                thingTemplate.find('.btn-buy').text("Buy").attr('disabled', false);
             }
-            $.get(url, function(data) {
-                console.log(JSON.stringify(thing));
-                let thingsRow = $('#thingsRow');
-                let thingTemplate = $('#thing-template');
-                thingTemplate.find('.thing-template-body').addClass('thing-item');
-                thingTemplate.find('.thing-template-body').attr('thing-item-id', thingId);
-                thingTemplate.find('.panel-title').text("Name: " + name);
-                thingTemplate.find('img').attr('src', data.image_url);
-                thingTemplate.find('.thing-id').text(thingId);
-                thingTemplate.find('.thing-price').text(price);
-                thingTemplate.find('.thing-generation').text(generation);
-                let timestamp=new Date().getTime() / 1000;
-                if (timestamp >= readyTime) {
-                    thingTemplate.find('.thing-ready-time').text(0);
-                } else {
-                    thingTemplate.find('.thing-ready-time').text(parseInt((readyTime - timestamp) / 60));
-                }
-                let attr = App.generateAttr(thing[2]);
-                thingTemplate.find('.thing-head').text(attr.headChoice);
-                thingTemplate.find('.thing-eye').text(attr.eyeChoice);
-                thingTemplate.find('.thing-skin').text(attr.skinChoice);
-                thingTemplate.find('.thing-up').text(attr.upChoice);
-                thingTemplate.find('.thing-down').text(attr.downChoice);
-                thingTemplate.find('.btn-buy').attr('thing-id', thingId);
-                thingTemplate.find('.btn-buy').attr('thing-price', price);
-                thingTemplate.find('.btn-sell').attr('thing-id', thingId);
-                thingTemplate.find('.btn-sell').attr('thing-price', price);
-                thingTemplate.find('.btn-upgrade').attr('thing-id', thingId);
-                thingTemplate.find('.btn-compute').attr('thing-id', thingId);
-                if (App.currentTab !== targetTab) {
-                    return;
-                }
-                switch (App.currentTab) {
-                    case App.tabs[0]:
-                        thingTemplate.find('.btn-buy').show();
-                        thingTemplate.find('.btn-sell').hide();
-                        thingTemplate.find('.btn-compute').hide();
-                        thingTemplate.find('.my-id').hide();
-                        break;
-                    case App.tabs[1]:
-                        thingTemplate.find('.btn-buy').hide();
-                        thingTemplate.find('.btn-sell').hide();
-                        thingTemplate.find('.btn-compute').show();
-                        thingTemplate.find('.my-id').show();
-                        break;
-                    case App.tabs[2]:
-                        thingTemplate.find('.btn-buy').hide();
-                        thingTemplate.find('.btn-sell').show();
-                        thingTemplate.find('.btn-compute').hide();
-                        thingTemplate.find('.my-id').hide();
-                        break;
-                }
-                thingsRow.append(thingTemplate.html());
-            });
+            thingTemplate.find('.btn-buy').attr('thing-id', thingId);
+            thingTemplate.find('.btn-buy').attr('thing-price', price);
+            thingTemplate.find('.btn-sell').attr('thing-id', thingId);
+            thingTemplate.find('.btn-sell').attr('thing-price', price);
+            thingTemplate.find('.btn-upgrade').attr('thing-id', thingId);
+            thingTemplate.find('.btn-compute').attr('thing-id', thingId);
+            if (App.currentTab !== targetTab) {
+                return;
+            }
+            switch (App.currentTab) {
+                case App.tabs[0]:
+                    thingTemplate.find('.btn-buy').show();
+                    thingTemplate.find('.btn-sell').hide();
+                    thingTemplate.find('.btn-compute').hide();
+                    thingTemplate.find('.my-id').hide();
+                    break;
+                case App.tabs[1]:
+                    thingTemplate.find('.btn-buy').hide();
+                    thingTemplate.find('.btn-sell').hide();
+                    thingTemplate.find('.btn-compute').show();
+                    thingTemplate.find('.my-id').show();
+                    break;
+                case App.tabs[2]:
+                    thingTemplate.find('.btn-buy').hide();
+                    thingTemplate.find('.btn-sell').show();
+                    thingTemplate.find('.btn-compute').hide();
+                    thingTemplate.find('.my-id').hide();
+                    break;
+            }
+            thingsRow.append(thingTemplate.html());
         }).catch(function (err) {
             console.log('loadThing error: ' + err.message);
         });
