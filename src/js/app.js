@@ -198,7 +198,7 @@ App = {
                 App.handleComputeCenter();
                 break;
             case App.tabs[2]:
-                handleMyCenter();
+                App.handleMyCenter();
                 break;
         }
     },
@@ -219,6 +219,7 @@ App = {
                 value:web3.toWei(thingPrice,'ether')});
             return instance.buyThing(thingId, {from: App.currentAccount});
         }).then(function (result) {
+            window.location.reload();
             if (App.config.debug) {
                 console.log('handleBuyThing result = ' + JSON.stringify(result));
             }
