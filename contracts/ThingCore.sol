@@ -183,12 +183,19 @@ contract ThingHelper is ThingCompute {
     }
 
     function getThingsCouldBuy(address _owner) external view returns(uint[]) {
-        uint[] memory result = new uint[](things.length);
         uint counter = 0;
+        uint k = 0;
         for (uint i = 0; i < things.length; i++) {
             if (things[i].on_sale == true && thingToOwner[i] != _owner) {
-                result[counter] = i;
                 counter++;
+            }
+        }
+
+        uint[] memory result = new uint[](counter);
+        for (uint j = 0; j < things.length; j++) {
+            if (things[j].on_sale == true && thingToOwner[j] != _owner) {
+                result[k] = j;
+                k++;
             }
         }
         return result;
@@ -240,9 +247,11 @@ contract ThingCore is ThingHelper, ERC721 {
     }
 
     function _transfer(address _from, address _to, uint256 _tokenId) private {
+        Thing storage thing = things[_tokenId];
         ownerThingCount[_to] = ownerThingCount[_to].add(1);
         ownerThingCount[_from] = ownerThingCount[_from].sub(1);
         thingToOwner[_tokenId] = _to;
+        thing.on_sale = false;
         Transfer(_from, _to, _tokenId);
     }
 
